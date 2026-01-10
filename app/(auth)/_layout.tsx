@@ -10,14 +10,13 @@ import {
 import React from "react";
 import { Redirect, Slot } from "expo-router";
 import { images } from "@/constants";
+import useAuthStore from "@/store/auth.store";
 
 export default function _Layout() {
-    const isAuthenticated = true; // test
+    const { isAuthenticated } = useAuthStore();
 
-    // If logged in, never show auth screens
-    if (isAuthenticated) return <Redirect href="/(tabs)" />;
+    if(isAuthenticated) return <Redirect href="/" />
 
-    // Otherwise show the auth stack (sign-in / sign-up)
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <ScrollView className="bg-white" keyboardShouldPersistTaps="handled">
