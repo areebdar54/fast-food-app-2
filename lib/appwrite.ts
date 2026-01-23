@@ -1,4 +1,4 @@
-import {Account, Avatars, Client, Databases, ID, Query} from "react-native-appwrite";
+import {Account, Avatars, Client, Databases, ID, Query, Storage} from "react-native-appwrite";
 import {CreateUserParams, SignInParams} from "@/type";
 
 export const appwriteConfig =  {
@@ -6,8 +6,20 @@ export const appwriteConfig =  {
     projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!,
     platform: "com.jsm.foodordering",
     databaseId: "695bce55001aa5831c8b",
+    bucketId: "6962d5ba001edd15a555",
     userCollectionId: 'users',
+    categoriesCollectionId: 'categories',
+    menuCollectionId: 'menu',
+    customizationsCollectionId: 'customizations',
+    menuCustomizationsCollectionId: 'menu_customization',
 }
+
+// chatgpt check endpoint status, can delete later when everything works
+console.log("APPWRITE ENV CHECK", {
+    endpoint: appwriteConfig.endpoint,
+    projectId: appwriteConfig.projectId,
+});
+
 
 export const client = new Client();
 
@@ -18,6 +30,7 @@ client
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage = new Storage(client);
 const avatars = new Avatars(client);
 
 export const createUser = async ({ email, password, name }: CreateUserParams) => {
