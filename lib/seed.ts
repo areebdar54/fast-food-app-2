@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "react-native";
-import { ID } from "react-native-appwrite";
+import { ID, Permission, Role } from "react-native-appwrite";
 import { appwriteConfig, databases, storage } from "./appwrite";
 import dummyData from "./data";
 
@@ -184,7 +184,8 @@ async function uploadImageToStorage(imageSource: string | number): Promise<strin
                     const file = await storage.createFile(
                         appwriteConfig.bucketId,
                         ID.unique(),
-                        fileObj as any
+                        fileObj as any,
+                        [Permission.read(Role.any())]
                     );
 
                     console.log("✅ Uploaded directly from URL:", file.$id);
@@ -235,7 +236,8 @@ async function uploadImageToStorage(imageSource: string | number): Promise<strin
         const file = await storage.createFile(
             appwriteConfig.bucketId,
             ID.unique(),
-            fileObj as any
+            fileObj as any,
+            [Permission.read(Role.any())]
         );
 
         console.log("✅ Uploaded to storage:", file.$id);
