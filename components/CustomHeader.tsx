@@ -17,10 +17,13 @@ const CustomHeader = ({ title }: CustomHeaderProps) => {
                 />
             </TouchableOpacity>
 
-            {title && <Text className="base-semibold text-dark-100">{title}</Text>}
-
-            <Image source={images.search} className="size-5" resizeMode="contain" />
+            {!!title && (
+                <Text className="absolute left-0 right-0 text-center base-semibold text-dark-100">
+                    {title}
+                </Text>
+            )}
         </View>
+
     );
 };
 

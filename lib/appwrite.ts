@@ -113,3 +113,95 @@ export const getCategories = async () => {
         throw new Error(e as string);
     }
 }
+
+
+export const signOut = async () => {
+    try {
+        // deletes the current session
+        await account.deleteSession("current");
+    } catch (e) {
+        // If there's no active session, Appwrite may throw; treat as logged out.
+        console.warn("signOut error:", e);
+    }
+};
+
+export const getMenuItemById = async (id: string) => {
+    try {
+        return await databases.getDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.menuCollectionId,
+            id
+        );
+    } catch (e) {
+        throw new Error(e as string);
+    }
+};
+
+type CustomizationDoc = {
+    $id: string;
+    name: string;
+    price: number;
+    type: string;
+};
+
+export const getMenuCustomizations = async (menuId: string): Promise<CustomizationDoc[]> => {
+    try {
+        // menu_customization collection stores relations: { menu: <menuId>, customizations: <customizationId | doc> }
+        const rels = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.menuCustomizationsCollectionId,
+            [Query.equal("menu", menuId)]
+        );
+
+        const maybeDocs = rels.documents
+            .map((d: any) => d.customizations)
+            .filter(Boolean);
+
+        // If relations are expanded, we already have docs
+        const expanded = maybeDocs.filter((c: any) => typeof c === "object" && c.$id);
+        if (expanded.length > 0) {
+            return expanded.map((c: any) => ({
+                $id: c.$id,
+                name: c.name,
+                price: Number(c.price ?? 0),
+                type: c.type ?? "custom",
+            }));
+        }
+
+        // Otherwise we only have ids, so fetch the customization documents
+        const ids = maybeDocs.filter((c: any) => typeof c === "string") as string[];
+        if (ids.length === 0) return [];
+
+        const customizationDocs = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.customizationsCollectionId,
+            [Query.equal("$id", ids)]
+        );
+
+        return customizationDocs.documents.map((c: any) => ({
+            $id: c.$id,
+            name: c.name,
+            price: Number(c.price ?? 0),
+            type: c.type ?? "custom",
+        }));
+    } catch (e) {
+        console.error("getMenuCustomizations error:", e);
+        return [];
+    }
+};
+
+export const updateUserDocument = async (
+    userDocumentId: string,
+    data: Partial<{ name: string; phone: string; address: string; avatar: string; }>
+) => {
+    try {
+        return await databases.updateDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.userCollectionId,
+            userDocumentId,
+            data
+        );
+    } catch (e) {
+        throw new Error(e as string);
+    }
+};

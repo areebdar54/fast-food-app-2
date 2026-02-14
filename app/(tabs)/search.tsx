@@ -10,7 +10,7 @@ import cn from "clsx";
 import MenuCard from "@/components/MenuCard";
 import SearchBar from "@/components/SearchBar";
 import Filter from "@/components/Filter";
-import {MenuItem} from "@/type";
+import {Category, MenuItem} from "@/type";
 
 const Search = () => {
 
@@ -34,7 +34,7 @@ const Search = () => {
                     const isFirstRightColItem = index % 2 === 0;
                     return (
                         <View className={cn("flex-1 max-w-[48%]", !isFirstRightColItem ? 'mt-10': 'mt-0')}>
-                            <MenuCard item={item as MenuItem} />
+                            <MenuCard item={item as unknown as MenuItem} />
                         </View>
                     );
                 }}
@@ -56,7 +56,8 @@ const Search = () => {
 
                         <SearchBar />
 
-                        <Filter categories={categories!}/>
+                        <Filter categories={(categories ?? []) as unknown as Category[]} />
+
                     </View>
                 )}
                 ListEmptyComponent={() => !loading && <Text>No Results</Text>}
