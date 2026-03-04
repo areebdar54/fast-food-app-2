@@ -8,8 +8,8 @@ export const appwriteConfig =  {
     databaseId: "695bce55001aa5831c8b",
     bucketId: "6962d5ba001edd15a555",
     userCollectionId: 'users',
-    categoriesCollectionId: 'categories',
-    menuCollectionId: 'menu',
+    categoriesCollectionId: 'categoriesv2',
+    menuCollectionId: 'menuv2',
     customizationsCollectionId: 'customizations',
     menuCustomizationsCollectionId: 'menu_customization',
 }
@@ -82,24 +82,27 @@ export const getCurrentUser = async () => {
     }
 }
 
-export const getMenu = async ({ category, query }: GetMenuParams) => {
-    try {
-        const queries: string[] = [];
 
-        if(category) queries.push(Query.equal('categories', category));
-        if(query) queries.push(Query.search('name', query));
+export const getMenu = async ({ category, query }: { category?: string; query?: string }) => {
+    try {
+        const queries: string[] = [Query.limit(100)];
+
+        if (category) queries.push(Query.equal("categories", category));
+
+        if (query) queries.push(Query.search("name", query));
 
         const menus = await databases.listDocuments(
             appwriteConfig.databaseId,
             appwriteConfig.menuCollectionId,
-            queries,
-        )
+            queries
+        );
 
         return menus.documents;
     } catch (e) {
         throw new Error(e as string);
     }
-}
+};
+
 
 export const getCategories = async () => {
     try {
@@ -205,3 +208,12 @@ export const updateUserDocument = async (
         throw new Error(e as string);
     }
 };
+
+export function getAssetViewUrl(fileId?: string | null) {
+    if (!fileId) return null;
+
+    // storage.getFileView returns a URL object in some SDK versions
+    const result: any = storage.getFileView(appwriteConfig.bucketId, fileId);
+    return typeof result === "string" ? result : result?.href ?? String(result);
+}
+

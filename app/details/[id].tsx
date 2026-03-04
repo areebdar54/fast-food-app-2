@@ -1,13 +1,28 @@
 import "../globals.css";
 
-import {JSX, useEffect, useMemo, useState} from "react";
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {JSX, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { images } from "@/constants";
+import { appwriteConfig } from "@/lib/appwrite";
 import { getMenuItemById } from "@/lib/appwrite";
 import { useCartStore } from "@/store/cart.store";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const IMAGE_WIDTH = SCREEN_WIDTH - 40; // px-5 on each side
 
 /** -----------------------------
  * Option Group Types (UI-first)
@@ -105,6 +120,21 @@ function getOptionGroupsForMenu(menu: any): OptionGroup[] {
   ];
 }
 
+function buildFileUrl(fileId: string): string {
+  return `${appwriteConfig.endpoint}/storage/buckets/${appwriteConfig.bucketId}/files/${fileId}/view?project=${appwriteConfig.projectId}`;
+}
+
+function parseGalleryUrls(menu: any): string[] {
+  if (menu?.image_file_ids) {
+    try {
+      const ids: string[] = JSON.parse(menu.image_file_ids);
+      if (Array.isArray(ids) && ids.length > 0) return ids.map(buildFileUrl);
+    } catch {}
+  }
+  if (menu?.image_url) return [menu.image_url];
+  return [];
+}
+
 export default function Details(): JSX.Element {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -114,6 +144,7 @@ export default function Details(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState<any>(null);
   const [qty, setQty] = useState(1);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // selections
   const [selectedSingles, setSelectedSingles] = useState<Record<string, string>>({});
@@ -357,10 +388,54 @@ export default function Details(): JSX.Element {
           {/* Title */}
           <Text className="h1-bold text-dark-100 text-center mt-2">{menu.name}</Text>
 
-          {/* Image */}
-          <View className="mt-6 items-center">
-            <Image source={{ uri: menu.image_url }} className="w-full h-64 rounded-2xl" resizeMode="contain" />
-          </View>
+          {/* Image gallery */}
+          {(() => {
+            const galleryUrls = parseGalleryUrls(menu);
+            if (galleryUrls.length <= 1) {
+              return (
+                <View className="mt-6 items-center">
+                  <Image
+                    source={{ uri: galleryUrls[0] ?? menu.image_url }}
+                    className="w-full h-64 rounded-2xl"
+                    resizeMode="contain"
+                  />
+                </View>
+              );
+            }
+            return (
+              <View className="mt-6">
+                <FlatList
+                  data={galleryUrls}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(_, i) => String(i)}
+                  onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / IMAGE_WIDTH);
+                    setActiveImageIndex(idx);
+                  }}
+                  renderItem={({ item: uri }) => (
+                    <Image
+                      source={{ uri }}
+                      style={{ width: IMAGE_WIDTH, height: 256 }}
+                      className="rounded-2xl"
+                      resizeMode="contain"
+                    />
+                  )}
+                />
+                <View className="flex-row justify-center mt-3">
+                  {galleryUrls.map((_, i) => (
+                    <View
+                      key={i}
+                      className={`w-2 h-2 rounded-full mx-1 ${
+                        i === activeImageIndex ? "bg-primary" : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
 
           {/* Price */}
           <Text className="h2-bold text-primary text-center mt-6">

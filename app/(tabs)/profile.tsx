@@ -3,6 +3,9 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
+import seed from "@/lib/seed";
+import { Alert, Pressable } from "react-native";
+
 import useAuthStore from "@/store/auth.store";
 import { images } from "@/constants";
 import { signOut } from "@/lib/appwrite";
@@ -86,6 +89,36 @@ export default function Profile() {
           </View>
         </TouchableOpacity>
       </ScrollView>
+
+      {__DEV__ && (
+          <Pressable
+              onPress={() =>
+                  Alert.alert(
+                      "Seed Database",
+                      "This will CLEAR menuV2 + categoriesV2 and reseed from realData. Continue?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Seed",
+                          style: "destructive",
+                          onPress: async () => {
+                            try {
+                              await seed();
+                              Alert.alert("Done", "Seeding complete.");
+                            } catch (e: any) {
+                              Alert.alert("Seed failed", e?.message ?? String(e));
+                            }
+                          },
+                        },
+                      ]
+                  )
+              }
+              style={{ marginTop: 16, padding: 12, borderRadius: 10, borderWidth: 1 }}
+          >
+            <Text>DEV: Seed Database</Text>
+          </Pressable>
+      )}
+
     </SafeAreaView>
   );
 }
