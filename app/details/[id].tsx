@@ -1,6 +1,6 @@
 import "../globals.css";
 
-import {JSX, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import { JSX, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -20,106 +20,15 @@ import { images } from "@/constants";
 import { appwriteConfig } from "@/lib/appwrite";
 import { getMenuItemById } from "@/lib/appwrite";
 import { useCartStore } from "@/store/cart.store";
+import { getOptionGroupsForMenu, type OptionGroup } from "@/lib/optionGroups";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const IMAGE_WIDTH = SCREEN_WIDTH - 40; // px-5 on each side
 
-/** -----------------------------
- * Option Group Types (UI-first)
- * ------------------------------*/
-type Option = {
-  id: string;
-  label: string;
-  price?: number; // delta price
-};
-
-type DependsOn = {
-  groupId: string;
-  optionId: string; // show only if selectedSingles[groupId] === optionId
-};
-
-type OptionGroup =
-    | {
-  id: string;
-  title: string;
-  type: "single";
-  required?: boolean;
-  options: Option[];
-  dependsOn?: DependsOn;
-}
-    | {
-  id: string;
-  title: string;
-  type: "multi";
-  required?: boolean;
-  maxSelect: number;
-  options: Option[];
-  dependsOn?: DependsOn;
-};
 
 /** -----------------------------
  * Fixed “Meal sides” list (your concept)
  * ------------------------------*/
-const MEAL_SIDES: Option[] = [
-  { id: "chips", label: "Chips" },
-  { id: "rice", label: "Rice" },
-  { id: "wedges", label: "Wedges" },
-  { id: "nuggets", label: "Nuggets" },
-  { id: "onion_rings", label: "Onion Rings" },
-  { id: "mozzarella_sticks", label: "Mozzarella Sticks" },
-  { id: "bottomless_sf_drink", label: "Bottomless Sugar-Free Drink" },
-];
-
-/** -----------------------------
- * Temporary option-groups mapping (NO schema changes)
- * Later we'll move this into Appwrite.
- * ------------------------------*/
-function getOptionGroupsForMenu(menu: any): OptionGroup[] {
-  // Example: apply to all items for now.
-  // Later we can do:
-  // - grilled items: "Choose your flavour"
-  // - fried items: "Choose your rub"
-  // - burgers: maybe no flavour group, etc.
-
-  // For now we keep it simple and usable:
-  return [
-    {
-      id: "meal",
-      title: "Make it a Meal!",
-      type: "single",
-      required: true,
-      options: [
-        { id: "meal_yes", label: "Yes", price: 3.5 }, // change price whenever you want
-        { id: "meal_no", label: "No", price: 0 },
-      ],
-    },
-    {
-      id: "meal_sides",
-      title: "Choose 2 sides",
-      type: "multi",
-      required: true,
-      maxSelect: 2,
-      options: MEAL_SIDES,
-      dependsOn: { groupId: "meal", optionId: "meal_yes" },
-    },
-    {
-      id: "flavour_or_rub",
-      title: "Choose your flavour / rub",
-      type: "single",
-      required: true,
-      options: [
-        { id: "mango_lime", label: "Mango & Lime" },
-        { id: "lemon_herb", label: "Lemon & Herb" },
-        { id: "mild", label: "Mild" },
-        { id: "hot", label: "Hot" },
-        { id: "extra_hot", label: "Extra Hot" },
-        { id: "extreme", label: "Extreme" },
-        { id: "plain", label: "Plain" },
-      ],
-    },
-  ];
-}
-
 function buildFileUrl(fileId: string): string {
   return `${appwriteConfig.endpoint}/storage/buckets/${appwriteConfig.bucketId}/files/${fileId}/view?project=${appwriteConfig.projectId}`;
 }
@@ -187,6 +96,7 @@ export default function Details(): JSX.Element {
   const isGroupVisible = (group: OptionGroup) => {
     if (!group.dependsOn) return true;
     const current = selectedSingles[group.dependsOn.groupId];
+    if ("optionIds" in group.dependsOn) return group.dependsOn.optionIds.includes(current);
     return current === group.dependsOn.optionId;
   };
 
@@ -194,7 +104,6 @@ export default function Details(): JSX.Element {
     setSelectedSingles((prev) => {
       const next = { ...prev, [groupId]: optionId };
 
-      // ✅ rule: if meal switches to NO, clear meal sides
       if (groupId === "meal" && optionId === "meal_no") {
         setSelectedMultis((mPrev) => {
           const mNext = { ...mPrev };
@@ -202,6 +111,12 @@ export default function Details(): JSX.Element {
           return mNext;
         });
       }
+
+      // Clear dependent single groups when parent changes (e.g. Munchbox burger flavour/seasoning)
+      const dependents = optionGroups.filter(
+        (g) => g.dependsOn?.groupId === groupId && g.type === "single"
+      );
+      for (const g of dependents) delete next[g.id];
 
       return next;
     });
@@ -283,14 +198,31 @@ export default function Details(): JSX.Element {
     if (!menu) return;
     if (!canAddToCart) return;
 
-    // For now we keep payload simple so we don't refactor your cart store yet.
-    // Later we can store selected options inside the cart item.
+    const customizations: { id: string; name: string; price: number; type: string }[] = [];
+    for (const g of optionGroups) {
+      if (!isGroupVisible(g)) continue;
+      if (g.type === "single") {
+        const optId = selectedSingles[g.id];
+        if (!optId) continue;
+        const opt = g.options.find((o) => o.id === optId);
+        if (opt)
+          customizations.push({ id: opt.id, name: opt.label, price: Number(opt.price ?? 0), type: g.id });
+      } else {
+        const ids = selectedMultis[g.id] ?? [];
+        for (const optId of ids) {
+          const opt = g.options.find((o) => o.id === optId);
+          if (opt)
+            customizations.push({ id: opt.id, name: opt.label, price: Number(opt.price ?? 0), type: g.id });
+        }
+      }
+    }
+
     const payload = {
       id: menu.$id,
       name: menu.name,
-      price: Number(menu.price ?? 0) + optionsTotal,
+      price: Number(menu.price ?? 0),
       image_url: menu.image_url,
-      // future: selections: { singles: selectedSingles, multis: selectedMultis }
+      customizations,
     };
 
     for (let i = 0; i < qty; i++) addItem(payload);
@@ -454,10 +386,12 @@ export default function Details(): JSX.Element {
 
               const hint =
                   group.type === "multi"
-                      ? `Choose up to ${group.maxSelect}`
+                      ? group.required
+                          ? `Choose up to ${group.maxSelect}`
+                          : `Optional (up to ${group.maxSelect})`
                       : group.required
                           ? "Please select 1 option"
-                          : "";
+                          : "Optional";
 
               return (
                   <View key={group.id} className="mt-8">

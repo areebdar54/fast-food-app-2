@@ -30,7 +30,7 @@ const Cart = () => {
             <FlatList
                 data={items}
                 renderItem={({ item }) => <CartItem item={item} />}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id + "-" + (item.customizations ? JSON.stringify(item.customizations) : "")}
                 contentContainerClassName="pb-28 px-5 pt-5"
                 ListHeaderComponent={() => <CustomHeader title="Your Cart" />}
                 ListEmptyComponent={() => <Text>Cart empty</Text>}
@@ -43,21 +43,21 @@ const Cart = () => {
                             
                             <PaymentInfoStripe
                                 label={`Total Items (${totalItems})`}
-                                value={`$${totalPrice.toFixed(2)}`}
+                                value={`£${totalPrice.toFixed(2)}`}
                             />
                             <PaymentInfoStripe
                                 label={`Delivery Fee`}
-                                value={`$5.00`}
+                                value={`£2.00`}
                             />
                             <PaymentInfoStripe
                                 label={`Discount`}
-                                value={`- $0.50`}
+                                value={`£0.00`}
                                 valueStyle="!text-success"
                             />
                             <View className="border-t border-gray-300 my-2" />
                             <PaymentInfoStripe
                                 label={`Total`}
-                                value={`$${(totalPrice + 5 - 0.5).toFixed(2)}`}
+                                value={`£${(totalPrice + 2).toFixed(2)}`}
                                 labelStyle="base-bold !text-dark-100"
                                 valueStyle="base-bold !text-dark-100 !text-right"
                             />

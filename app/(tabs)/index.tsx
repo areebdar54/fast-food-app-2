@@ -106,7 +106,7 @@ export default function Index() {
                             style={{ backgroundColor: item.color }}
                             onPress={() =>
                                 router.push({
-                                    pathname: "/(tabs)/search",
+                                    pathname: "/(tabs)/order",
                                     params: { category: item.categoryId },
                                 })
                             }
